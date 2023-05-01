@@ -219,10 +219,14 @@ extern void eph2pos(gtime_t time, const eph_t *eph, double *rs, double *dts,
     r+=eph->crs*sin2u+eph->crc*cos2u;
     i+=eph->cis*sin2u+eph->cic*cos2u;
     x=r*cos(u); y=r*sin(u); cosi=cos(i);
-    
+
+    double toe_tow =  eph->toes; 
+    if(sys == SYS_CMP)
+        toe_tow = time2bdt(timeadd(eph->toe, -14), NULL);
+
     /* beidou geo satellite (ref [9]) */
     if (sys==SYS_CMP&&prn<=5) {
-        O=eph->OMG0+eph->OMGd*tk-omge*eph->toes;
+        O=eph->OMG0+eph->OMGd*tk-omge*toe_tow;
         sinO=sin(O); cosO=cos(O);
         xg=x*cosO-y*cosi*sinO;
         yg=x*sinO+y*cosi*cosO;
@@ -233,7 +237,7 @@ extern void eph2pos(gtime_t time, const eph_t *eph, double *rs, double *dts,
         rs[2]=-yg*SIN_5+zg*COS_5;
     }
     else {
-        O=eph->OMG0+(eph->OMGd-omge)*tk-omge*eph->toes;
+        O=eph->OMG0+(eph->OMGd-omge)*tk-omge*toe_tow;
         sinO=sin(O); cosO=cos(O);
         rs[0]=x*cosO-y*cosi*sinO;
         rs[1]=x*sinO+y*cosi*cosO;

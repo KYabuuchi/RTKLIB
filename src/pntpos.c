@@ -88,7 +88,7 @@ static double prange(const obsd_t *obs, const nav_t *nav, const double *azel,
     P1_P2=nav->cbias[obs->sat-1][0];
     P1_C1=nav->cbias[obs->sat-1][1];
     P2_C2=nav->cbias[obs->sat-1][2];
-    
+
     /* if no P1-P2 DCB, use TGD instead */
     if (P1_P2==0.0&&(sys&(SYS_GPS|SYS_GAL|SYS_QZS))) {
         P1_P2=(1.0-gamma)*gettgd(obs->sat,nav);
@@ -109,6 +109,12 @@ static double prange(const obsd_t *obs, const nav_t *nav, const double *azel,
         PC=P1-P1_P2/(1.0-gamma);
     }
     if (opt->sateph==EPHOPT_SBAS) PC-=P1_C1; /* sbas clock based C1 */
+
+    if(fabs(gamma-1.0)<1e-6){
+        int obs_id=obs->sat;
+        printf("gammna is 1.0f will cause nan %lf\n",gamma);
+        return 0.0;
+    }
     
     *var=SQR(ERR_CBIAS);
     
@@ -257,11 +263,15 @@ static int rescode(int iter, const obsd_t *obs, int n, const double *rs,
         else if (sys==SYS_GAL) {v[nv]-=x[5]; H[5+nv*NX]=1.0; mask[2]=1;}
         else if (sys==SYS_CMP) {v[nv]-=x[6]; H[6+nv*NX]=1.0; mask[3]=1;}
         else mask[0]=1;
-        
+
         vsat[i]=1; resp[i]=v[nv]; (*ns)++;
         
         /* error variance */
         var[nv++]=varerr(opt,azel[1+i*2],sys)+vare[i]+vmeas+vion+vtrp;
+        
+        if(iter==0){
+            printf("success residual: sat=%d\n",obs[i].sat);
+        }
         
         trace(4,"sat=%2d azel=%5.1f %4.1f res=%7.3f sig=%5.3f\n",obs[i].sat,
               azel[i*2]*R2D,azel[1+i*2]*R2D,resp[i],sqrt(var[nv-1]));
@@ -287,6 +297,8 @@ static int valsol(const double *azel, const int *vsat, int n,
     
     /* chi-square validation of residuals */
     vv=dot(v,v,nv);
+    printf("valsol vv: %lf\n",vv);
+
     if (nv>nx&&vv>chisqr[nv-nx-1]) {
         sprintf(msg,"chi-square error nv=%d vv=%.1f cs=%.1f",nv,vv,chisqr[nv-nx-1]);
         return 0;
@@ -547,7 +559,7 @@ extern int pntpos(const obsd_t *obs, int n, const nav_t *nav,
     sol->stat=SOLQ_NONE;
     
     if (n<=0) {strcpy(msg,"no observation data"); return 0;}
-    
+
     trace(3,"pntpos  : tobs=%s n=%d\n",time_str(obs[0].time,3),n);
     
     sol->time=obs[0].time; msg[0]='\0';
